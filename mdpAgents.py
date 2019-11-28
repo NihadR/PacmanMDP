@@ -263,8 +263,8 @@ class MDPAgent(Agent):
                 ghostY = ghost[y][1]
                 death.append((int(ghostX + x), int(ghostY)))
                 death.append((int(ghostX - x), int(ghostY)))
-                death.append((int(ghostX), int(ghostY + i)))
-                death.append((int(ghostX), int(ghostY - i)))
+                death.append((int(ghostX), int(ghostY + 1)))
+                death.append((int(ghostX), int(ghostY - 1)))
 
         return death
 
