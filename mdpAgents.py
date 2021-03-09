@@ -36,13 +36,14 @@ import game
 import util
 from copy import copy
 
+#
 # A class that creates a grid that can be used as a map
 #
 # The map itself is implemented as a nested list, and the interface
 # allows it to be accessed by specifying x, y locations.
-#
+# Taked from keats week 5
 class Grid:
-
+         
     # Constructor
     #
     # Note that it creates variables:
@@ -67,29 +68,29 @@ class Grid:
         self.grid = subgrid
 
     # Print the grid out.
-    def display(self):
+    def display(self):       
         for i in range(self.height):
             for j in range(self.width):
                 # print grid elements with no newline
                 print self.grid[i][j],
             # A new line after each line of the grid
-            print
+            print 
         # A line after the grid
         print
 
     # The display function prints the grid out upside down. This
     # prints the grid out so that it matches the view we see when we
     # look at Pacman.
-    def prettyDisplay(self):
+    def prettyDisplay(self):       
         for i in range(self.height):
             for j in range(self.width):
                 # print grid elements with no newline
                 print self.grid[self.height - (i + 1)][j],
             # A new line after each line of the grid
-            print
+            print 
         # A line after the grid
         print
-
+        
     # Set and get the values of specific elements in the grid.
     # Here x and y are indices.
     def setValue(self, x, y, value):
@@ -119,6 +120,7 @@ class MDPAgent(Agent):
         self.capsuleDict = {}
         self.wallDict = {}
         self.moveableBlocks= {}
+        # Holds utilities
         self.util = {
         "north_util" : 0.0, "east_util" : 0.0, "south_util" : 0.0, "west_util" : 0.0
         }
@@ -134,19 +136,21 @@ class MDPAgent(Agent):
     def final(self, state):
         print "Looks like the game just ended!"
 
-
+    # Returns the max width of the map
     def getGridWidth(self, state):
         xValues = []
         for i in range(len(api.corners(state))):
             xValues.append(api.corners(state)[i][0])
         return max(xValues) + 1
 
+    # Returns the max height of the map
     def getGridHeight(self, state):
         yValues = []
         for i in range(len(api.corners(state))):
             yValues.append(api.corners(state)[i][1])
         return max(yValues) +1
 
+    # Adds all walls to a dictionary with the coordinates stored as keys assigning them the value W
     def addGridDict(self, state):
         walls = api.walls(state)
         wallDict = {}
@@ -154,7 +158,7 @@ class MDPAgent(Agent):
             wallDict.update({walls[i]:"W"})
         return wallDict
 
-
+    # Adds all the ghosts to a dictionary assigning them a value
     def assignGhostValue(self, state):
         ghost = api.ghosts(state)
         ghostDict = {}
@@ -162,20 +166,25 @@ class MDPAgent(Agent):
             ghostDict.update({ghost[i]:-1.5})
         return ghostDict
 
+    # Adds all the food to a dictionary assigning them a value
     def assignFoodValue(self, state):
         food = api.food(state)
         foodDict = {}
         for i in range(len(food)):
-            foodDict.update({food[i]:0.2})
+            foodDict.update({food[i]:0.1})
         return foodDict
 
+    # Creates a dictionary which stores all the capsules on the map while assinging values to them
     def assignCapsuleValue(self, state):
         capsule = api.capsules(state)
         capsuleDict= {}
         for i in range(len(capsule)):
-            capsuleDict.update({capsule[i]:0.8})
+            capsuleDict.update({capsule[i]:0.4})
         return capsuleDict
 
+    # This method returns all the space on the map which is empty, as in there is no food, capsule, or ghost on it, and
+    # then assigns it a value. It first returns a list of coordinates which does not have the walls which is then used
+    # to check if it is free of other items
     def assignSpaceValue(self, state):
         freeSpace= []
         for x in range(self.getGridWidth(state)):
@@ -183,12 +192,15 @@ class MDPAgent(Agent):
                 freeSpace.append((x,y))
         for value in self.addGridDict(state):
             freeSpace.remove(value)
+        # Returns all coordinates which does not have a wall
         moveableBlocks= {}
         for i in range(len(freeSpace)):
+            # Checks whether a space does is not in any other dictionary, if it isnt it assigns a value to it
             if freeSpace[i] not in self.foodDict and freeSpace[i] not in self.capsuleDict and freeSpace[i] not in self.ghostDict:
                 moveableBlocks.update({freeSpace[i]:-0.05})
         return moveableBlocks
 
+    # A dictionary which stores all other initialised dictionaries with their values.
     def map(self, state):
         pacloc = api.whereAmI(state)
         walls = api.walls(state)
@@ -197,21 +209,26 @@ class MDPAgent(Agent):
         capsule = api.capsules(state)
         visitedStates = []
 
+        # Adds other dictionaries and their values to this one
         map = {}
+        # Assigns every empty space intially as 0 before other dictionries are added
         map.update(self.assignSpaceValue(state))
         map.update(self.assignFoodValue(state))
         map.update(self.assignGhostValue(state))
         map.update(self.addGridDict(state))
         map.update(self.assignCapsuleValue(state))
 
-
+        # Checks to see whether pacman has visited a location, if it has then it is added to this list
         if pacloc not in self.visitedStates:
            self.visitedStates.append(pacloc)
 
+        # Checks whether pacman has eaten a piece of food by comparing the coordinates in the list
+        # with the coordinates in the food dictionary, if it had then it updates the value
         for i in self.visitedStates:
             if i in self.foodDict:
                 map[i] = 0
 
+        # Same as the previous one, just checks for capsules
         for i in self.visitedStates:
             if i in self.capsuleDict:
                 map[i] = 0
@@ -219,10 +236,13 @@ class MDPAgent(Agent):
 
         return map
 
+    # Calculates the maximum expected utility of a coordinate on the map
+    # this is then later passed into the value iteration
     def calcUtility(self, xAxis, yAxis, state, vMap):
         self.vMap = vMap
 
-
+        # Checks whether a given direction is a wall, if it isn't it stores the position in a variable
+        # Else it stores the current state pacman is in
         if self.vMap[(xAxis, yAxis +1)] != "W":
             northCoord = self.vMap[(xAxis, yAxis +1)]
         else:
@@ -243,22 +263,26 @@ class MDPAgent(Agent):
         else:
             eastCoord = self.vMap[(xAxis, yAxis)]
 
-
+        # mutiplies the utilities of positions depending on whether there is a wall or not and
+        # stores it in the dictionary
         self.util["north_util"] = ((0.8 * northCoord) + (0.1 * westCoord) + (0.1 * eastCoord))
         self.util["east_util"]  = ((0.8 * eastCoord) + (0.1 * northCoord) + (0.1 * southCoord))
         self.util["south_util"] = ((0.8 * southCoord) + (0.1 * westCoord) + (0.1 * eastCoord))
         self.util["west_util"] = ((0.8 * westCoord) + (0.1 * northCoord) + (0.1 * southCoord))
 
         self.vMap[xAxis, yAxis] = max(self.util.values())
-
+        # returns a map with the transtion values
         return self.vMap[xAxis, yAxis]
 
+    # Returns a list of coordinates which is surrounding the ghost at a given point
     def avoidGhost(self, state):
-        ghostRange = 1
+        ghostRange = 2
         death = []
         ghost = api.ghosts(state)
         for x in range(ghostRange):
             for y in range(len(ghost)):
+                # Creates variables which access the ghosts x and y position, then used to appened
+                # all possible coordinates in a range of 2 from that position to a list
                 ghostX = ghost[y][0]
                 ghostY = ghost[y][1]
                 death.append((int(ghostX + x), int(ghostY)))
@@ -268,7 +292,8 @@ class MDPAgent(Agent):
 
         return death
 
-
+    # this does value iteration for both maps with different variations of the formulas depending on the size of the map
+    # gamma is the discount function and vMap and is the map
     def valueIteration(self, gamma, vMap, state):
         foodLocation = self.assignFoodValue(state)
         capsuleLocation = self.assignCapsuleValue(state)
@@ -277,42 +302,54 @@ class MDPAgent(Agent):
         width = self.getGridWidth(state) -1
         height = self.getGridHeight(state) -1
         ghost = self.avoidGhost(state)
+        # Sets the reward as the current state it is in
         initReward = vMap.copy()
+        # Checks whether the map is medium or small, depending on that it can run a different value iteration
         if width >= 10 and height>= 10:
             #medium grid
+            loop = 25
+            while loop > 0:
+                # Stores old values
+                temp = vMap.copy()
+                for x in range(width):
+                    for y in range(height):
+                        if (x,y) not in walls and (x,y) not in ghostLocation and (x,y) not in capsuleLocation:
+                            # Checks whether pacman is currently in the surrounding coordinates of the ghost
+                            # depending on the result will change the reward value
+                            if (x,y) not in ghost:
+                                vMap[(x,y)] = initReward[(x, y)] + gamma * self.calcUtility(x, y, state, temp)
+                            else:
+                                vMap[(x,y)] = -2 + gamma * self.calcUtility(x, y, state, temp)
+
+                loop -= 1
+        else:
+            #small grid
+            # Food is excluded for the small grid as it is a terminal state
             loop = 20
             while loop > 0:
                 temp = vMap.copy()
                 for x in range(width):
                     for y in range(height):
-                        if (x,y) not in walls and (x,y) not in ghostLocation and (x,y) not in capsuleLocation:
-                            if (x,y) not in ghost:
-                                vMap[(x,y)] = initReward[(x, y)] + gamma * self.calcUtility(x, y, state, temp)
-                            else:
-                                vMap[(x,y)] = initReward[(x, y)] + gamma * self.calcUtility(x, y, state, temp)
-
-                loop -= 1
-        else:
-            #small grid
-            loop = 10
-            while loop > 0:
-                temp = vMap.copy()
-                for x in range(width):
-                    for y in range(height):
                         if (x,y) not in walls and (x,y) not in ghostLocation and (x,y) not in foodLocation and (x,y) not in capsuleLocation:
+                            # Checks whether pacman is currently in the surrounding coordinates of the ghost
+                            # depending on the result will change the reward value
                             if (x,y) not in ghost:
                                 vMap[(x,y)] = initReward[(x, y)] + gamma * self.calcUtility(x, y, state, temp)
                             else:
-                                vMap[(x,y)] = initReward[(x, y)] + gamma * self.calcUtility(x, y, state, temp)
+                                vMap[(x,y)] = -2 + gamma * self.calcUtility(x, y, state, temp)
 
                 loop -= 1
 
+    # Calculates the movement policy for pacmans locations at a given state
+    # using the value iteration map
     def getPolicy(self, state, itrMap):
         self.vMap = itrMap
         pacloc = api.whereAmI(state)
         xAxis = pacloc[0]
         yAxis = pacloc[1]
 
+        # Checks whether going a direction from pacmans current location will lead to a wall
+        # else it'll return pacmans current position
         if self.vMap[(xAxis, yAxis +1)] != "W":
             northCoord = self.vMap[(xAxis, yAxis +1)]
         else:
@@ -333,53 +370,30 @@ class MDPAgent(Agent):
         else:
             eastCoord = self.vMap[(xAxis, yAxis)]
 
+        # calculates the utilities for each possible move and stores them in the dictionary
         self.util["north_util"] = ((0.8 * northCoord) + (0.1 * westCoord) + (0.1 * eastCoord))
         self.util["east_util"]  = ((0.8 * eastCoord) + (0.1 * northCoord) + (0.1 * southCoord))
         self.util["south_util"] = ((0.8 * southCoord) + (0.1 * westCoord) + (0.1 * eastCoord))
         self.util["west_util"] = ((0.8 * westCoord) + (0.1 * northCoord) + (0.1 * southCoord))
 
+        # retieves the maximum utility
         maxU = max(self.util.values())
-        legal = api.legalActions(state)
-
+        # returns the move with the highest utility
         return  self.util.keys()[self.util.values().index(maxU)]
 
 
 
 
 
-    # For now I just move randomly
+
     def getAction(self, state):
 
-
-            #print "map", self.map(state)
-            # print "util", self.calcUtility(xAxis, yAxis, state)
-            # nextpol = self.getPolicy(state)
-            # print nextpol
-
-            # Get the actions we can try, and remove "STOP" if that is one of them.
             legal = api.legalActions(state)
             vMap = self.map(state)
-            # print "first", vMap
-            # if Directions.STOP in legal:
-            #     legal.remove(Directions.STOP)
-            # #
-            self.valueIteration(0.7, vMap, state)
-            # print "second",  vMap
-        # Random choice between the legal options.
-            # print "val it is ", self.valueIteration(state)
-            # print "next move is", self.getPolicy(xAxis, yAxis, state)
-            # for i in range(self.getGridWidth(state)):
-            #     for j in range(self.getGridHeight(state)):
-            #         if self.getValue(i,j) != "W":
-            #             self.setValue(i, j, vMap[(i,j)])
-                    # if vMap[(i, j)] != "W":
-                    #     vMap.update[vMap[(i, j)]]
-            # nextMove = self.getPolicy(xAxis, yAxis, state)
-            # for i in nextMove:
-            # #     if i is legal:
-            # print "best move"
-            # print self.getPolicy(state, vMap)
-            #
+            # Calls value iteration with the given gamma value
+            self.valueIteration(0.72, vMap, state)
+
+            # Calls get policy to return the next best move, if it is legal then move is carried out
             if self.getPolicy(state, vMap) == "north_util":
                 return api.makeMove('North', legal)
             elif self.getPolicy(state, vMap) == "south_util":
@@ -388,5 +402,3 @@ class MDPAgent(Agent):
 	               return api.makeMove('East', legal)
             elif self.getPolicy(state, vMap) == "west_util":
                 return api.makeMove('West', legal)
-
-            # return api.makeMove(random.choice(legal), legal)
